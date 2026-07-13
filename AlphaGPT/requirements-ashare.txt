@@ -1,0 +1,33 @@
+# AlphaGPT-AShare - Python Dependencies
+# Python 3.10+ required (recommended: 3.11)
+#
+# 安装方式：
+#   pip install -r requirements-ashare.txt
+
+# ===== Core Dependencies (Required for main pipeline) =====
+
+# Deep Learning & Numerical Computing
+torch>=2.0.0              # PyTorch for model training and inference
+numpy>=1.24.0             # Numerical operations
+
+# Data Processing & Database
+pandas>=2.0.0             # Data manipulation and analysis
+
+# A-Share Data Source
+akshare>=1.10.0           # 中国 A 股数据接口（无需 API Key）
+
+# Environment & Configuration
+python-dotenv>=1.0.0      # Load .env files
+
+# Logging & Progress
+loguru>=0.7.0             # Structured logging
+tqdm>=4.66.0              # Progress bars
+
+# ===== Optional Dependencies =====
+
+# 数据可视化（可选，用于查看因子分布）
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# 回测分析（可选）
+# backtrader  # 如需更详细的回测框架
