@@ -25,12 +25,26 @@ class AShareFactorEngineer:
         turn = raw_dict['turnover']    # 换手率
         mc = raw_dict['circulating_market_cap']
         
+        # 检测缺失列：turnover 和 market_cap 是否为0（CSV导入时的默认值）
+        has_turnover = torch.abs(turn).sum() > 1e-3
+        has_market_cap = torch.abs(mc).sum() > 1e-3
+        
+        if not has_turnover:
+            logger.info(" turnover data missing, using volume change rate as proxy")
+        if not has_market_cap:
+            logger.info(" market_cap data missing, using amount as proxy")
+        
         # 1. RET: 对数收益率
         ret = torch.log(c / (torch.roll(c, 1, dims=1) + 1e-9))
         
         # 2. TURN: 换手率标准化（换手率 / 20日MA换手率）
-        turn_ma = AShareFactorEngineer._rolling_mean(turn, window=20)
-        turn_norm = turn / (turn_ma + 1e-9)
+        # 如果 turnover 缺失，用 volume 变化率替代
+        if has_turnover:
+            turn_ma = AShareFactorEngineer._rolling_mean(turn, window=20)
+            turn_norm = turn / (turn_ma + 1e-9)
+        else:
+            v_ma20 = AShareFactorEngineer._rolling_mean(v, window=20)
+            turn_norm = v / (v_ma20 + 1e-9)  # volume 标准化替代
         
         # 3. VOLAT: 20日波动率
         volat = AShareFactorEngineer._rolling_std(ret, window=20)
@@ -53,6 +67,13 @@ class AShareFactorEngineer:
         vr = v / (v_ma5 + 1e-9)
         
         # 9. LOG_MC: 对数流通市值
+        # 如果 market_cap 缺失，用 amount（成交额）的截面排名替代
+        if has_market_cap:
+            log_mc = torch.log1p(mc + 1e-9)
+        else:
+            # 替代方案：用 amount 作为活跃度和规模的代理
+            amt_proxy = torch.log1p(amt + 1e-9)
+            log_mc = AShareFactorEngineer._cross_sectional_rank(amt_proxy) * 5.0  # 缩放到合理范围
         log_mc = torch.log1p(mc + 1e-9)
         
         # 10. HL_RANGE: 振幅 (high - low) / close

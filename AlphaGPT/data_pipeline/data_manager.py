@@ -95,11 +95,23 @@ class AShareDataManager:
         logger.info(f"Total stocks: {len(stock_list)}")
         
         # 2. 过滤
-        filtered = stock_list[
-            (stock_list['price'] >= self.config.MIN_PRICE) &
-            (stock_list['price'] <= self.config.MAX_PRICE) &
-            (stock_list['market_cap'] >= self.config.MIN_MARKET_CAP)
-        ]
+        # 判断数据来源：主接口有市值数据，备用接口市值为0
+        has_market_data = stock_list['market_cap'].sum() > 0
+        
+        if has_market_data:
+            # 主接口：正常过滤
+            filtered = stock_list[
+                (stock_list['price'] >= self.config.MIN_PRICE) &
+                (stock_list['price'] <= self.config.MAX_PRICE) &
+                (stock_list['market_cap'] >= self.config.MIN_MARKET_CAP)
+            ]
+            logger.info("Using market data filter (primary API)")
+        else:
+            # 备用接口：只过滤代码格式，市值/价格在下载历史数据后判断
+            filtered = stock_list[
+                stock_list['code'].str.match(r'^(00|30|60|68)')  # 沪深主板+创业板+科创板
+            ]
+            logger.info("Using code-only filter (backup API, no market data)")
         
         # 排除 ST（名称中包含 ST）
         if self.config.EXCLUDE_ST:
@@ -107,6 +119,10 @@ class AShareDataManager:
         
         codes = filtered['code'].tolist()
         logger.info(f"Stocks after filtering: {len(codes)}")
+        
+        if not codes:
+            logger.warning("No stocks passed the filter. Check data source or relax constraints.")
+            return
         
         # 3. 确定更新范围
         last_update = self.get_last_update_date()
