@@ -67,3 +67,4 @@ daily_report_*.csv
 # PyTorch
 *.pt
 *.pth
+AlphaGPT/数据/all_stock_cache.csv
