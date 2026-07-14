@@ -52,8 +52,8 @@ class AShareBacktest:
         is_limit_up = raw_data.get('is_limit_up', torch.zeros_like(close))
         is_limit_down = raw_data.get('is_limit_down', torch.zeros_like(close))
 
-        # 买入：信号 > 0.85 且 非涨停 且 有效股票
-        can_buy = is_valid * (1 - is_limit_up) * (signal > 0.85).float()
+        # 买入：信号 > 0.70 且 非涨停 且 有效股票
+        can_buy = is_valid * (1 - is_limit_up) * (signal > 0.70).float()
 
         # 4. 持仓收益：T+1 开盘买入 → T+2 开盘卖出
         # 目标收益已扣除卖出印花税+佣金+过户费（单边成本）
@@ -79,11 +79,7 @@ class AShareBacktest:
         # 10. 适应度评分
         score = cum_ret - (big_drawdowns * 2.0)
 
-        # 11. 活跃度过滤：交易次数太少（持仓日数 < 5）温和惩罚
-        activity = can_buy.sum(dim=1)
-        score = torch.where(activity < 5, score - 2.0, score)
-        activity = can_buy.sum(dim=1)
-        score = torch.where(activity < 5, score - 2.0, score)
+        # 11. 活跃度过滤已移除（让模型自由探索，靠交易成本自然筛选）
 
         # 12. 中位数适应度（鲁棒）
         final_fitness = torch.median(score)
@@ -95,7 +91,7 @@ class AShareBacktest:
         多空回测版本（A 股可做空时可用，如融券/股指期货）
         当前仅作为扩展接口
         """
-        long_signal = (torch.sigmoid(factors) > 0.85).float()
+        long_signal = (torch.sigmoid(factors) > 0.70).float()
         short_signal = (torch.sigmoid(factors) < 0.15).float()
 
         long_pnl = long_signal * target_ret
