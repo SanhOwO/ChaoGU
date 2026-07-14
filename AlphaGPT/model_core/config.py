@@ -11,7 +11,7 @@ class ModelConfig:
                            "data_pipeline", "ashare_data.db")
     
     BATCH_SIZE = 1024        # 减小batch以加快训练速度
-    TRAIN_STEPS = 5000       # 更多训练步数以找到更优公式
+    TRAIN_STEPS = 2000       # 训练步数
     MAX_FORMULA_LEN = 14     # 增加公式长度上限（A 股因子更多）
     
     # A 股交易参数（真实交易成本：万一佣金 + 0.05%印花税 + 0.001%过户费）

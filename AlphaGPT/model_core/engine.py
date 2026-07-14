@@ -95,9 +95,9 @@ class AShareAlphaEngine:
                     rewards[i] = -5.0
                     continue
                 
-                if res.std() < 1e-4:
-                    rewards[i] = -2.0
-                    continue
+                # 注：原项目此处有 res.std() < 1e-4 检查，过滤"无区分度"公式
+                # 但加了常数 token 后，CONST_NEG10（std=0）是合法的"不交易"策略，
+                # 若继续过滤，模型永远发现不了 score=0 的最优基线，故删除
                 
                 score, ret_val = self.bt.evaluate(res, self.loader.raw_data_cache, self.loader.target_ret)
                 rewards[i] = score
