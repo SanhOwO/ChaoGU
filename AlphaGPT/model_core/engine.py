@@ -81,9 +81,9 @@ class AShareAlphaEngine:
             for i in range(bs):
                 formula = seqs[i].tolist()
                 
-                # 尝试关键前缀长度（奇数长度更可能有效），减少搜索次数
+                # 尝试关键前缀长度（Polish notation 只可能奇数长度有效），减少搜索次数
                 res = None
-                for trunc_len in [1, 3, 5, 7, 9, 11, 13, 14]:
+                for trunc_len in [1, 3, 5, 7, 9, 11, 13]:
                     if trunc_len > len(formula):
                         continue
                     candidate = formula[:trunc_len]

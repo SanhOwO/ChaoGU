@@ -95,12 +95,29 @@ class AShareDataLoader:
         # 7. 计算目标收益：T+1 开盘买入，T+2 开盘卖出
         # target_ret[t] = open[t+2] / open[t+1] - 1
         op = self.raw_data_cache['open']
+        vol = self.raw_data_cache['volume']
+        
+        # 向量化屏蔽停牌日：T+1 或 T+2 是停牌日（volume=0）则无法完整交易
         t1 = torch.roll(op, -1, dims=1)   # T+1 开盘
         t2 = torch.roll(op, -2, dims=1)   # T+2 开盘
-        self.target_ret = (t2 / (t1 + 1e-9)) - 1.0
+        vol_t1 = torch.roll(vol, -1, dims=1)   # T+1 成交量
+        vol_t2 = torch.roll(vol, -2, dims=1)   # T+2 成交量
+        
+        # 只有 T+1 和 T+2 都正常交易的日子才计算收益率
+        can_trade = (vol_t1 > 0) & (vol_t2 > 0) & (t1 > 0) & (t2 > 0)
+        
+        self.target_ret = torch.where(
+            can_trade,
+            (t2 / (t1 + 1e-9)) - 1.0,
+            0.0
+        )
         
         # 最后两期无法计算目标收益，置零
         self.target_ret[:, -2:] = 0.0
+        
+        # 额外保护：截断极端异常值
+        self.target_ret = torch.clamp(self.target_ret, -0.5, 0.5)
+
         
         print(f"Data Ready. Shape: {self.feat_tensor.shape}")
         print(f"  Stocks: {self.feat_tensor.shape[0]}")
