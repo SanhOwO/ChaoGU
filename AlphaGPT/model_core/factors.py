@@ -12,7 +12,7 @@ class AShareFactorEngineer:
         """
         raw_dict: dict with keys
             'open', 'high', 'low', 'close', 'volume', 'amount', 'turnover',
-            'circulating_market_cap', optional 'macd_hist'
+            'market_cap', optional 'macd_hist'
         All tensors: [Stocks, Time]
         Returns: features [Stocks, Features, Time]
         """
@@ -23,7 +23,7 @@ class AShareFactorEngineer:
         v = raw_dict['volume']
         amt = raw_dict['amount']       # 成交额
         turn = raw_dict['turnover']    # 换手率
-        mc = raw_dict['circulating_market_cap']
+        mc = raw_dict['market_cap']
         
         # 检测缺失列：turnover 和 market_cap 是否为0（CSV导入时的默认值）
         has_turnover = torch.abs(turn).sum() > 1e-3

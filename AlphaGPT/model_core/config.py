@@ -10,7 +10,7 @@ class ModelConfig:
     DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
                            "data_pipeline", "ashare_data.db")
     
-    BATCH_SIZE = 4096        # A 股全市场约 5000+ 只股票，减小 batch
+    BATCH_SIZE = 1024        # 减小batch以加快训练速度
     TRAIN_STEPS = 2000       # 增加训练步数（A 股数据更丰富）
     MAX_FORMULA_LEN = 14     # 增加公式长度上限（A 股因子更多）
     

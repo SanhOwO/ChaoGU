@@ -63,7 +63,7 @@ class AShareDataLoader:
         code_str = "','".join(self.codes)
         data_query = f"""
         SELECT date, code, open, high, low, close, volume, amount, 
-               turnover, circulating_market_cap
+               turnover, market_cap
         FROM daily_kline
         WHERE code IN ('{code_str}')
         ORDER BY date ASC
@@ -86,7 +86,7 @@ class AShareDataLoader:
             'volume': to_tensor('volume'),
             'amount': to_tensor('amount'),
             'turnover': to_tensor('turnover'),
-            'circulating_market_cap': to_tensor('circulating_market_cap'),
+            'market_cap': to_tensor('market_cap'),
         }
         
         # 6. 计算特征张量
@@ -133,5 +133,5 @@ class AShareDataLoader:
             'latest_close': self.raw_data_cache['close'][idx, -1].item(),
             'latest_open': self.raw_data_cache['open'][idx, -1].item(),
             'latest_volume': self.raw_data_cache['volume'][idx, -1].item(),
-            'market_cap': self.raw_data_cache['circulating_market_cap'][idx, -1].item(),
+            'market_cap': self.raw_data_cache['market_cap'][idx, -1].item(),
         }

@@ -29,7 +29,7 @@ class AShareBacktest:
         """
         factors: [Stocks, Time]  由 VM 执行公式得到的因子信号
         raw_data: dict with 'open', 'high', 'low', 'close', 'volume', 'turnover',
-                             'circulating_market_cap', 'is_limit_up', 'is_limit_down'
+                             'market_cap', 'is_limit_up', 'is_limit_down'
         target_ret: [Stocks, Time]  T+1 日开盘到 T+2 日开盘的收益率
 
         Returns: (score, avg_return)
@@ -39,7 +39,7 @@ class AShareBacktest:
 
         # 2. 基础过滤：排除低价股、高价股、小市值、无成交量
         close = raw_data['close']
-        mc = raw_data.get('circulating_market_cap',
+        mc = raw_data.get('market_cap',
                           raw_data.get('market_cap', torch.ones_like(close) * 1e10))
 
         is_valid = (
@@ -79,9 +79,11 @@ class AShareBacktest:
         # 10. 适应度评分
         score = cum_ret - (big_drawdowns * 2.0)
 
-        # 11. 活跃度过滤：交易次数太少（持仓日数 < 5）惩罚
+        # 11. 活跃度过滤：交易次数太少（持仓日数 < 5）温和惩罚
         activity = can_buy.sum(dim=1)
-        score = torch.where(activity < 5, torch.tensor(-10.0, device=score.device), score)
+        score = torch.where(activity < 5, score - 2.0, score)
+        activity = can_buy.sum(dim=1)
+        score = torch.where(activity < 5, score - 2.0, score)
 
         # 12. 中位数适应度（鲁棒）
         final_fitness = torch.median(score)

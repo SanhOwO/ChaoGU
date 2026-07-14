@@ -51,7 +51,7 @@ class AShareAlphaEngine:
         }
     
     def train(self):
-        print("🚀 Starting A-Share Alpha Mining with LoRD Regularization..." if self.use_lord else "🚀 Starting A-Share Alpha Mining...")
+        print(">>> Starting A-Share Alpha Mining with LoRD Regularization..." if self.use_lord else ">>> Starting A-Share Alpha Mining...")
         if self.use_lord:
             print(f"   LoRD Regularization enabled")
             print(f"   Target keywords: ['q_proj', 'k_proj', 'attention', 'qk_norm']")
@@ -81,7 +81,15 @@ class AShareAlphaEngine:
             for i in range(bs):
                 formula = seqs[i].tolist()
                 
-                res = self.vm.execute(formula, self.loader.feat_tensor)
+                # 尝试关键前缀长度（奇数长度更可能有效），减少搜索次数
+                res = None
+                for trunc_len in [1, 3, 5, 7, 9, 11, 13, 14]:
+                    if trunc_len > len(formula):
+                        continue
+                    candidate = formula[:trunc_len]
+                    res = self.vm.execute(candidate, self.loader.feat_tensor)
+                    if res is not None:
+                        break
                 
                 if res is None:
                     rewards[i] = -5.0
@@ -96,8 +104,8 @@ class AShareAlphaEngine:
                 
                 if score.item() > self.best_score:
                     self.best_score = score.item()
-                    self.best_formula = formula
-                    tqdm.write(f"[!] New King: Score {score:.2f} | Ret {ret_val:.2%} | Formula {formula}")
+                    self.best_formula = formula[:trunc_len]  # 保存实际有效的公式
+                    tqdm.write(f"[!] New King: Score {score:.2f} | Ret {ret_val:.2%} | Formula {formula[:trunc_len]}")
             
             # 归一化奖励
             adv = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
@@ -138,7 +146,7 @@ class AShareAlphaEngine:
         with open("training_history.json", "w") as f:
             json.dump(self.training_history, f)
         
-        print(f"\n✓ Training completed!")
+        print(f"\n[OK] Training completed!")
         print(f"  Best score: {self.best_score:.4f}")
         print(f"  Best formula: {self.best_formula}")
 
