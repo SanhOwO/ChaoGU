@@ -127,23 +127,19 @@ class AShareAlphaEngine:
                     self.best_formula = formula[:trunc_len]  # 保存实际有效的公式
                     tqdm.write(f"[!] New King: Score {score:.2f} | Ret {ret_val:.2%} | Formula {formula[:trunc_len]}")
             
-            # 分层奖励 + 相对排名：迫使模型持续探索更高正分
+            # 方案B：score 必须超过 +0.064 才给正奖励，否则重罚
             for i in range(bs):
                 score_val = raw_scores[i]
-                better_count = sum(1 for s in raw_scores if s > score_val)
-                percentile = 1.0 - (better_count / bs)
                 
                 if score_val >= self.best_score:
-                    rewards[i] = 1.0  # 超越当前最优 → 最高奖励
-                elif score_val > 0 and percentile >= 0.8:
-                    rewards[i] = 0.5  # 有正分且排名前20% → 中等奖励
-                elif score_val > 0:
-                    rewards[i] = -0.1  # 有正分但不够好 → 轻微惩罚
+                    rewards[i] = 1.0  # 新最优
+                elif score_val > 0.064:
+                    rewards[i] = 0.5  # 真正超越 CLOSE_POS
                 else:
-                    rewards[i] = -2.0  # 亏损或无效 → 重罚
+                    rewards[i] = -2.0  # 连 CLOSE_POS 都不如（包括包装器）
             
-            # 打印每步 top 3 公式详情（单股调试模式）
-            if formula_details and len(self.loader.codes) == 1:
+            # 打印每步 top 3 公式详情（单股调试模式，每 50 步打印一次）
+            if formula_details and len(self.loader.codes) == 1 and step % 50 == 0:
                 formula_details.sort(key=lambda x: x['score'], reverse=True)
                 tqdm.write(f"\n  Step {step} | Stock: {self.loader.codes[0]} | Top 3 Formulas:")
                 for rank, fd in enumerate(formula_details[:3], 1):
@@ -190,6 +186,13 @@ class AShareAlphaEngine:
             self.training_history['step'].append(step)
             self.training_history['avg_reward'].append(avg_reward)
             self.training_history['best_score'].append(self.best_score)
+            
+            # 每100步自动保存最优公式和训练历史，防止中断丢失
+            if step % 100 == 0 and step > 0:
+                with open("best_meme_strategy.json", "w") as f:
+                    json.dump(self.best_formula, f)
+                with open("training_history.json", "w") as f:
+                    json.dump(self.training_history, f)
             
             pbar.set_postfix(postfix_dict)
         

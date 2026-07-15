@@ -11,11 +11,11 @@ class ModelConfig:
                            "data_pipeline", "ashare_data.db")
     
     BATCH_SIZE = 2048        # 增大batch，增加发现正收益公式的概率
-    TRAIN_STEPS = 5000       # 训练步数（方案A：强制5-token，需要更多步数探索）
+    TRAIN_STEPS = 2000       # 训练步数
     MAX_FORMULA_LEN = 14     # 增加公式长度上限（A 股因子更多）
     
-    # 熵正则化系数：防止模型过早收敛到"不交易"策略，保持探索
-    ENTROPY_COEF = 0.05
+    # 熵正则化系数：强制重新探索，打破 entropy=0.01 的收敛死锁
+    ENTROPY_COEF = 2.0
     
     # A 股交易参数（真实交易成本：万一佣金 + 0.05%印花税 + 0.001%过户费）
     TRADE_SIZE_CNY = 10000.0   # 每只股票假设投入 1 万元
