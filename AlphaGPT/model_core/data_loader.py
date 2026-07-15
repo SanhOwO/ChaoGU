@@ -15,7 +15,17 @@ class AShareDataLoader:
         self.codes = []              # 股票代码列表
         self.dates = []              # 交易日列表
         
-    def load_data(self, limit_stocks=None, min_history=60, start_date=None, end_date=None):
+    def load_data(self, limit_stocks=None, min_history=60, start_date=None, end_date=None, specific_codes=None):
+        """
+        从 SQLite 加载数据，构建特征张量
+        
+        Args:
+            limit_stocks: 限制股票数量（None=全部）
+            min_history: 最少历史天数（过滤新股）
+            start_date: 起始日期（含），格式 'YYYY-MM-DD'，None=最早
+            end_date: 结束日期（含），格式 'YYYY-MM-DD'，None=最新
+            specific_codes: 指定股票代码列表（如 ['300633']），优先级最高
+        """
         """
         从 SQLite 加载数据，构建特征张量
         
@@ -43,20 +53,34 @@ class AShareDataLoader:
             f"SELECT MAX(date) as max_date FROM daily_kline WHERE 1=1 {date_filter}", conn
         )['max_date'].iloc[0]
         
-        # 2. 获取候选股票（在日期范围内有足够数据）
-        codes_query = f"""
-        SELECT code, COUNT(*) as cnt 
-        FROM daily_kline 
-        WHERE 1=1 {date_filter}
-        GROUP BY code 
-        HAVING cnt >= {min_history}
-        ORDER BY cnt DESC
-        """
-        if limit_stocks:
-            codes_query += f" LIMIT {limit_stocks}"
-        
-        codes_df = pd.read_sql(codes_query, conn)
-        self.codes = codes_df['code'].tolist()
+        # 2. 获取候选股票
+        if specific_codes:
+            # 指定特定股票，不做数量限制
+            code_filter = "','".join(specific_codes)
+            codes_query = f"""
+            SELECT code, COUNT(*) as cnt 
+            FROM daily_kline 
+            WHERE code IN ('{code_filter}') {date_filter}
+            GROUP BY code 
+            HAVING cnt >= {min_history}
+            ORDER BY cnt DESC
+            """
+            codes_df = pd.read_sql(codes_query, conn)
+            self.codes = codes_df['code'].tolist()
+        else:
+            codes_query = f"""
+            SELECT code, COUNT(*) as cnt 
+            FROM daily_kline 
+            WHERE 1=1 {date_filter}
+            GROUP BY code 
+            HAVING cnt >= {min_history}
+            ORDER BY cnt DESC
+            """
+            if limit_stocks:
+                codes_query += f" LIMIT {limit_stocks}"
+            
+            codes_df = pd.read_sql(codes_query, conn)
+            self.codes = codes_df['code'].tolist()
         
         if not self.codes:
             raise ValueError("No stocks found in database. Run data pipeline first.")

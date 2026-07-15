@@ -10,9 +10,12 @@ class ModelConfig:
     DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
                            "data_pipeline", "ashare_data.db")
     
-    BATCH_SIZE = 1024        # 减小batch以加快训练速度
-    TRAIN_STEPS = 2000       # 训练步数
+    BATCH_SIZE = 2048        # 增大batch，增加发现正收益公式的概率
+    TRAIN_STEPS = 5000       # 训练步数（方案A：强制5-token，需要更多步数探索）
     MAX_FORMULA_LEN = 14     # 增加公式长度上限（A 股因子更多）
+    
+    # 熵正则化系数：防止模型过早收敛到"不交易"策略，保持探索
+    ENTROPY_COEF = 0.05
     
     # A 股交易参数（真实交易成本：万一佣金 + 0.05%印花税 + 0.001%过户费）
     TRADE_SIZE_CNY = 10000.0   # 每只股票假设投入 1 万元
@@ -31,5 +34,8 @@ class ModelConfig:
     # 训练时间区间（None = 不限制）
     TRAIN_START_DATE = '2023-01-01'   # 训练起始日期
     TRAIN_END_DATE = None             # 训练结束日期（None=最新）
+    
+    # 指定训练股票（None=全部，['300633']=只训练这只）
+    TRAIN_SPECIFIC_CODES = ['300633']
     
     INPUT_DIM = FORMULA_VOCAB.feature_count

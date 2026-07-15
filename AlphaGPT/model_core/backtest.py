@@ -70,14 +70,13 @@ class AShareBacktest:
         # 7. 净收益
         net_pnl = gross_pnl - total_tx_cost - slippage_cost
 
-        # 8. 大回撤惩罚（单日亏损 > 5%）
-        big_drawdowns = (net_pnl < -0.05).float().sum(dim=1)
-
-        # 9. 累积收益
+        # 8. 累积收益（纯累积收益，无回撤惩罚）
         cum_ret = net_pnl.sum(dim=1)
 
-        # 10. 适应度评分
-        score = cum_ret - (big_drawdowns * 2.0)
+        # 9. 适应度评分
+        score = cum_ret
+
+        # 10. 中位数适应度（鲁棒）
 
         # 11. 活跃度过滤已移除（让模型自由探索，靠交易成本自然筛选）
 
