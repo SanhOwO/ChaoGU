@@ -15,27 +15,39 @@ class AShareDataLoader:
         self.codes = []              # 股票代码列表
         self.dates = []              # 交易日列表
         
-    def load_data(self, limit_stocks=None, min_history=60):
+    def load_data(self, limit_stocks=None, min_history=60, start_date=None, end_date=None):
         """
         从 SQLite 加载数据，构建特征张量
         
         Args:
             limit_stocks: 限制股票数量（None=全部）
             min_history: 最少历史天数（过滤新股）
+            start_date: 起始日期（含），格式 'YYYY-MM-DD'，None=最早
+            end_date: 结束日期（含），格式 'YYYY-MM-DD'，None=最新
         """
         print(f"Loading A-share data from {self.db_path}...")
+        if start_date or end_date:
+            print(f"  Date range: {start_date or 'earliest'} ~ {end_date or 'latest'}")
         
         conn = sqlite3.connect(self.db_path)
         
+        # 构建日期过滤条件
+        date_filter = ""
+        if start_date:
+            date_filter += f" AND date >= '{start_date}'"
+        if end_date:
+            date_filter += f" AND date <= '{end_date}'"
+        
         # 1. 获取最新交易日的全市场股票列表
         latest_date = pd.read_sql(
-            "SELECT MAX(date) as max_date FROM daily_kline", conn
+            f"SELECT MAX(date) as max_date FROM daily_kline WHERE 1=1 {date_filter}", conn
         )['max_date'].iloc[0]
         
-        # 2. 获取候选股票
+        # 2. 获取候选股票（在日期范围内有足够数据）
         codes_query = f"""
         SELECT code, COUNT(*) as cnt 
         FROM daily_kline 
+        WHERE 1=1 {date_filter}
         GROUP BY code 
         HAVING cnt >= {min_history}
         ORDER BY cnt DESC
@@ -52,9 +64,9 @@ class AShareDataLoader:
         print(f"Selected {len(self.codes)} stocks with >= {min_history} days history.")
         
         # 3. 构建统一时间轴（交易日序列）
-        dates_query = """
+        dates_query = f"""
         SELECT DISTINCT date FROM daily_kline 
-        WHERE code = (SELECT code FROM daily_kline LIMIT 1)
+        WHERE 1=1 {date_filter}
         ORDER BY date
         """
         self.dates = pd.read_sql(dates_query, conn)['date'].tolist()
@@ -65,7 +77,7 @@ class AShareDataLoader:
         SELECT date, code, open, high, low, close, volume, amount, 
                turnover, market_cap
         FROM daily_kline
-        WHERE code IN ('{code_str}')
+        WHERE code IN ('{code_str}') {date_filter}
         ORDER BY date ASC
         """
         df = pd.read_sql(data_query, conn)

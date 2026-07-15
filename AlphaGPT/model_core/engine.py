@@ -14,7 +14,10 @@ class AShareAlphaEngine:
     
     def __init__(self, use_lord_regularization=True, lord_decay_rate=1e-3, lord_num_iterations=5):
         self.loader = AShareDataLoader()
-        self.loader.load_data()
+        self.loader.load_data(
+            start_date=ModelConfig.TRAIN_START_DATE,
+            end_date=ModelConfig.TRAIN_END_DATE
+        )
         
         self.model = AlphaGPT().to(ModelConfig.DEVICE)
         

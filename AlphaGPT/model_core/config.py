@@ -28,4 +28,8 @@ class ModelConfig:
     MAX_PRICE = 500.0          # 排除高价股（>500元，极少）
     MIN_MARKET_CAP = 1e8       # 最小流通市值 1亿
     
+    # 训练时间区间（None = 不限制）
+    TRAIN_START_DATE = '2023-01-01'   # 训练起始日期
+    TRAIN_END_DATE = None             # 训练结束日期（None=最新）
+    
     INPUT_DIM = FORMULA_VOCAB.feature_count
