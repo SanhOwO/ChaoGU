@@ -36,6 +36,6 @@ class ModelConfig:
     TRAIN_END_DATE = None             # 训练结束日期（None=最新）
     
     # 指定训练股票（None=全部，['300633']=只训练这只）
-    TRAIN_SPECIFIC_CODES = ['300633']
+    TRAIN_SPECIFIC_CODES = None
     
     INPUT_DIM = FORMULA_VOCAB.feature_count

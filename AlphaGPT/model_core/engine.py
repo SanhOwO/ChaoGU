@@ -2,6 +2,7 @@ import torch
 from torch.distributions import Categorical
 from tqdm import tqdm
 import json
+import os
 
 from .vocab import FORMULA_VOCAB
 from .config import ModelConfig
@@ -9,6 +10,14 @@ from .data_loader import AShareDataLoader
 from .alphagpt import AlphaGPT, NewtonSchulzLowRankDecay, StableRankMonitor
 from .vm import StackVM
 from .backtest import AShareBacktest
+
+# 输出目录：项目根目录下的 个股训练数据/
+# engine.py 位于 AlphaGPT/model_core/，向上两级到项目根目录
+OUTPUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "个股训练数据"
+)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class AShareAlphaEngine:
     """A 股 AlphaGPT 训练引擎"""
@@ -55,8 +64,25 @@ class AShareAlphaEngine:
             'stable_rank': []
         }
     
-    def train(self):
-        print(">>> Starting A-Share Alpha Mining with LoRD Regularization..." if self.use_lord else ">>> Starting A-Share Alpha Mining...")
+    def train(self, save_prefix=None):
+        """
+        训练 AlphaGPT
+        
+        Args:
+            save_prefix: 保存文件名前缀（如 '300633'），
+                        为 None 时使用默认文件名
+        """
+        # 动态生成保存文件名
+        if save_prefix:
+            strategy_file = os.path.join(OUTPUT_DIR, f"{save_prefix}_strategy.json")
+            history_file = os.path.join(OUTPUT_DIR, f"{save_prefix}_training_history.json")
+        else:
+            strategy_file = os.path.join(OUTPUT_DIR, "best_meme_strategy.json")
+            history_file = os.path.join(OUTPUT_DIR, "training_history.json")
+        
+        print(f">>> Starting A-Share Alpha Mining with LoRD Regularization..." if self.use_lord else ">>> Starting A-Share Alpha Mining...")
+        print(f"   Strategy will be saved to: {strategy_file}")
+        print(f"   History will be saved to: {history_file}")
         if self.use_lord:
             print(f"   LoRD Regularization enabled")
             print(f"   Target keywords: ['q_proj', 'k_proj', 'attention', 'qk_norm']")
@@ -127,19 +153,28 @@ class AShareAlphaEngine:
                     self.best_formula = formula[:trunc_len]  # 保存实际有效的公式
                     tqdm.write(f"[!] New King: Score {score:.2f} | Ret {ret_val:.2%} | Formula {formula[:trunc_len]}")
             
-            # 方案B：score 必须超过 +0.064 才给正奖励，否则重罚
+            # 动态门槛：随 best_score 提升，最低 0.064
+            dynamic_threshold = max(0.064, self.best_score * 0.5)
+            
             for i in range(bs):
                 score_val = raw_scores[i]
                 
                 if score_val >= self.best_score:
                     rewards[i] = 1.0  # 新最优
-                elif score_val > 0.064:
-                    rewards[i] = 0.5  # 真正超越 CLOSE_POS
+                elif score_val > dynamic_threshold:
+                    rewards[i] = 0.5  # 真正超越动态门槛
                 else:
-                    rewards[i] = -2.0  # 连 CLOSE_POS 都不如（包括包装器）
+                    rewards[i] = -2.0  # 未达门槛（包括包装器）
             
-            # 打印每步 top 3 公式详情（单股调试模式，每 50 步打印一次）
-            if formula_details and len(self.loader.codes) == 1 and step % 50 == 0:
+            # 打印每步 top 3 公式详情（每 10 步打印一次）
+            if formula_details and step % 10 == 0:
+                formula_details.sort(key=lambda x: x['score'], reverse=True)
+                stock_info = f"Stocks: {len(self.loader.codes)}" if len(self.loader.codes) > 1 else f"Stock: {self.loader.codes[0]}"
+                tqdm.write(f"\n  Step {step} | {stock_info} | Top 3 Formulas:")
+                for rank, fd in enumerate(formula_details[:3], 1):
+                    const_tag = " [CONST]" if fd['is_constant'] else ""
+                    tqdm.write(f"    #{rank} | Score: {fd['score']:+.4f} | Ret: {fd['ret']:+.2%} | Formula: {fd['formula']}{const_tag}")
+            if formula_details and len(self.loader.codes) == 1 and step % 10 == 0:
                 formula_details.sort(key=lambda x: x['score'], reverse=True)
                 tqdm.write(f"\n  Step {step} | Stock: {self.loader.codes[0]} | Top 3 Formulas:")
                 for rank, fd in enumerate(formula_details[:3], 1):
@@ -175,6 +210,7 @@ class AShareAlphaEngine:
             postfix_dict = {
                 'AvgRew': f"{avg_reward:.3f}",
                 'BestScore': f"{self.best_score:.3f}",
+                'Threshold': f"{dynamic_threshold:.3f}",
                 'Entropy': f"{entropy_val:.2f}"
             }
             
@@ -187,25 +223,26 @@ class AShareAlphaEngine:
             self.training_history['avg_reward'].append(avg_reward)
             self.training_history['best_score'].append(self.best_score)
             
-            # 每100步自动保存最优公式和训练历史，防止中断丢失
-            if step % 100 == 0 and step > 0:
-                with open("best_meme_strategy.json", "w") as f:
+            # 每10步自动保存最优公式和训练历史，防止中断丢失
+            if step % 10 == 0 and step > 0:
+                with open(strategy_file, "w") as f:
                     json.dump(self.best_formula, f)
-                with open("training_history.json", "w") as f:
+                with open(history_file, "w") as f:
                     json.dump(self.training_history, f)
             
             pbar.set_postfix(postfix_dict)
         
         # 保存最优公式
-        with open("best_meme_strategy.json", "w") as f:
+        with open(strategy_file, "w") as f:
             json.dump(self.best_formula, f)
         
-        with open("training_history.json", "w") as f:
+        with open(history_file, "w") as f:
             json.dump(self.training_history, f)
         
         print(f"\n[OK] Training completed!")
         print(f"  Best score: {self.best_score:.4f}")
         print(f"  Best formula: {self.best_formula}")
+        print(f"  Saved to: {strategy_file} & {history_file}")
 
 
 if __name__ == "__main__":

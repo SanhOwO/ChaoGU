@@ -40,11 +40,15 @@ Thumbs.db
 # Logs
 *.log
 
-# Data
+# Data & DB
 *.db
 *.sqlite
 *.sqlite3
 data_pipeline/ashare_data.db
+AlphaGPT/数据/all_stock_cache.csv
+AlphaGPT/数据/single_hist_data/
+AlphaGPT/数据/实战/
+个股训练数据/
 
 # Secrets
 .env
@@ -67,4 +71,15 @@ daily_report_*.csv
 # PyTorch
 *.pt
 *.pth
-AlphaGPT/数据/all_stock_cache.csv
+
+# Misc generated files
+brute_force_*.json
+backtest_*.csv
+backtest_*.json
+analyze_dynamic.py
+calc_ratio.py
+find_latest_buy.py
+latest_signal.py
+list_all_buy.py
+signal_table.py
+backtest_formula.py
